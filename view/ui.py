@@ -54,7 +54,7 @@ def criar_interface(page, vm):
             page.update()
             threading.Thread(target=iniciar_extracao, args=(origem.value, atualizar_status)).start()
 
-    # Switch com labels em ambos os lados
+    #Switch (Botão de alternância)
     formato_saida = ft.Switch(
         value=False,
         on_change=lambda e: page.update(),
@@ -106,17 +106,17 @@ def criar_interface(page, vm):
     page.overlay.extend([file_picker_origem, file_picker_destino])
 
     def fechar_janela(e):
-        if not hasattr(page, 'fechado'):  # Evita múltiplas chamadas
+        if not hasattr(page, 'fechado'):  #Evita múltiplas chamadas
             page.fechado = True
-            print("Fechando a aplicação...")  # Para depuração
-            page.window_destroy()  # Fecha a janela
+            print("Fechando a aplicação...")  #Para depuração
+            page.window_destroy()
             import sys
-            sys.exit()  # Encerra o programa
+            sys.exit()
 
     page.on_window_close = fechar_janela
 
     return ft.Column([
-        ft.Text("Software de Conversão", size=24, weight="bold", color="#885E43", text_align="center"),
+        ft.Text("Documenta Planejamento e Microfilmagem", size=24, weight="bold", color="#885E43", text_align="center"),
         ft.Text("Conversor de arquivos para PDF ou paraa TIFF", size=16, color="#DBD0C5", text_align="center"),
         ft.Divider(color="#DBD0C5"),
         ft.Column([
@@ -126,7 +126,6 @@ def criar_interface(page, vm):
             ft.ElevatedButton("📂 Selecionar pasta de destino ", on_click=selecionar_pasta_destino, bgcolor="#303031", color="#DBD0C5"),
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         
-        # Adiciona o Switch acima dos botões
         ft.Column([
             formato_row,
             ft.Row([

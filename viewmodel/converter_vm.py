@@ -30,13 +30,6 @@ class ConversorViewModel:
         return f"✅ {total_arquivos} arquivos convertidos em {tempo_formatado}."
 
 def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
-    """
-    Inicia a conversão de arquivos para o formato especificado (PDF ou TIFF).
-    :param origem: Caminho do diretório de origem.
-    :param destino: Caminho do diretório de destino.
-    :param atualizar_status: Função para atualizar o status.
-    :param formato: Formato de saída ("PDF" ou "TIFF").
-    """
     vm = ConversorViewModel()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -44,11 +37,6 @@ def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
     loop.close()
 
 def iniciar_extracao(origem, atualizar_status=None):
-
-    # Inicia a extração de arquivos ZIP e TAR na própria pasta de origem.
-    # Após 5 segundos, os arquivos ZIP/TAR serão excluídos.
-    # :param origem: Caminho do diretório de origem.
-    # :param atualizar_status: Função para atualizar o status.
 
     try:
         extrair_todos_zips(origem, atualizar_status=atualizar_status)

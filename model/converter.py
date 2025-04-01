@@ -14,12 +14,12 @@ from reportlab.lib.utils import ImageReader
 import io
 import tempfile
 
-# Configurações
+#Configurações
 MAX_TAREFAS_SIMULTANEAS = 4
 PAGINAS_POR_LOTE = 150
 DPI_PDF = 150
 
-# Diretório temporário
+#Diretório temporário
 TEMP_DIR = Path(tempfile.gettempdir()) / "flet_converter_temp"
 TEMP_DIR.mkdir(exist_ok=True)
 
@@ -51,13 +51,13 @@ class ConversorModel:
         if not destino.exists():
             destino.mkdir(parents=True, exist_ok=True)
 
-        # Conta todos os arquivos em todas as subpastas
+        #Conta todos os arquivos em todas as subpastas
         total_arquivos = 0
         arquivos_para_processar = []
         for root, _, files in os.walk(origem):
             for file in files:
                 caminho_arquivo = Path(root) / file
-                # Verifica se é um tipo de arquivo suportado
+                #Verifica se é um tipo de arquivo suportado
                 if caminho_arquivo.suffix.lower() in ['.pdf', '.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.doc', '.docx']:
                     total_arquivos += 1
                     arquivos_para_processar.append(caminho_arquivo)
@@ -78,7 +78,7 @@ class ConversorModel:
                 if parar:
                     return
                 try:
-                    # Calcula o caminho relativo
+                    #Calcula o caminho relativo
                     caminho_relativo = caminho_arquivo.relative_to(origem)
                     destino_arquivo = destino / caminho_relativo
                     
@@ -89,7 +89,7 @@ class ConversorModel:
 
                     destino_arquivo.parent.mkdir(parents=True, exist_ok=True)
 
-                    # Processa conforme o formato
+                    #Processa conforme o tipo
                     if formato == "PDF":
                         if caminho_arquivo.suffix.lower() == '.pdf':
                             await ConversorModel.ajustar_pdf(caminho_arquivo, destino_arquivo)
@@ -109,12 +109,12 @@ class ConversorModel:
                     print(f"[ERRO] Falha ao processar {caminho_arquivo}: {e}")
                     arquivos_com_erro.append(caminho_arquivo.name)
 
-        # Cria e executa todas as tarefas
+        #Cria e executa todas as tarefas
         tarefas = [processar_arquivo(arquivo) for arquivo in arquivos_para_processar]
         await asyncio.gather(*tarefas)
         await ConversorModel.limpar_temp()
 
-        # Cálculo do tempo decorrido
+        #Cálculo do tempo decorrido
         tempo_total = time.time() - start_time
         horas, resto = divmod(tempo_total, 3600)
         minutos, segundos = divmod(resto, 60)
@@ -131,15 +131,15 @@ class ConversorModel:
         """Converte imagem para PDF A4 com proporção mantida"""
         try:
             with Image.open(caminho_arquivo) as img:
-                # Converter para RGB se for PNG com transparência
+                #Converte para RGB se for PNG com transparência
                 if img.mode in ('RGBA', 'P'):
                     img = img.convert('RGB')
                 
-                # Criar PDF em memória
+                #Cria PDF em memória
                 packet = io.BytesIO()
                 can = canvas.Canvas(packet, pagesize=A4)
                 
-                # Calcular dimensões mantendo proporção
+                #Calcula dimensões mantendo proporção
                 img_width, img_height = img.size
                 a4_width, a4_height = A4
                 ratio = min(a4_width/img_width, a4_height/img_height) * 0.9  # 90% da página
@@ -148,16 +148,16 @@ class ConversorModel:
                 x = (a4_width - new_width) / 2
                 y = (a4_height - new_height) / 2
                 
-                # Salvar imagem em memória
+                #Salvar imagem em memória
                 img_byte_arr = io.BytesIO()
                 img.save(img_byte_arr, format='PNG', quality=95)
                 img_byte_arr.seek(0)
                 
-                # Adicionar ao PDF
+                #Adicionar ao PDF
                 can.drawImage(ImageReader(img_byte_arr), x, y, width=new_width, height=new_height)
                 can.save()
                 
-                # Salvar PDF final
+                #Salvar PDF final
                 with open(destino_arquivo, 'wb') as f:
                     f.write(packet.getvalue())
         except Exception as e:
@@ -187,18 +187,18 @@ class ConversorModel:
         """Converte imagem ou PDF para TIFF (multipágina para PDFs)"""
         try:
             if caminho_arquivo.suffix.lower() == '.pdf':
-                # Converter PDF para TIFF multipágina
+                #Converter PDF para TIFF multipágina
                 pdf = pdfium.PdfDocument(str(caminho_arquivo))
                 images = []
                 
-                # Renderiza todas as páginas
+                #Renderiza as páginas
                 for page_number in range(len(pdf)):
                     page = pdf.get_page(page_number)
                     bitmap = page.render(scale=DPI_PDF/72)
                     pil_image = bitmap.to_pil()
                     images.append(pil_image)
                 
-                # Salva como TIFF multipágina
+                #Salva como TIFF multipágina
                 if len(images) > 0:
                     images[0].save(
                         destino_arquivo,
@@ -208,7 +208,7 @@ class ConversorModel:
                         append_images=images[1:] if len(images) > 1 else []
                     )
             else:
-                # Converter imagem simples para TIFF
+                #Converter imagem para TIFF
                 with Image.open(caminho_arquivo) as img:
                     img.save(destino_arquivo, format="TIFF", compression="tiff_deflate")
                     
@@ -217,12 +217,7 @@ class ConversorModel:
             raise
 
 def extrair_todos_zips(caminho_origem, atualizar_status=None):
-    """
-    Função para extrair todos os arquivos ZIP e TAR na própria pasta de origem.
-    Após 5 segundos, os arquivos ZIP/TAR serão excluídos.
-    :param caminho_origem: Caminho do diretório contendo os arquivos ZIP ou TAR.
-    :param atualizar_status: Função para atualizar o status.
-    """
+
     for arquivo in os.listdir(caminho_origem):
         caminho_arquivo = os.path.join(caminho_origem, arquivo)
         if arquivo.endswith(".zip"):
@@ -236,7 +231,7 @@ def extrair_todos_zips(caminho_origem, atualizar_status=None):
                 if atualizar_status:
                     atualizar_status(f"Extraído: {arquivo}")
 
-    # Aguarda 5 segundos antes de excluir os arquivos ZIP/TAR
+    #Espera 5 segundos antes de excluir os arquivos ZIP/TAR
     time.sleep(5)
     for arquivo in os.listdir(caminho_origem):
         caminho_arquivo = os.path.join(caminho_origem, arquivo)
