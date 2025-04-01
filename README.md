@@ -336,7 +336,7 @@ pyinstaller --onefile --windowed --icon=assets/icon.ico --add-data "assets;asset
 
 ## 🖥️ Software Interface
 
-
+![Interface do Sofwtare](./captura-software-conversor.png)
 
 ## 🤝 How to Contribute
 
@@ -347,7 +347,8 @@ pyinstaller --onefile --windowed --icon=assets/icon.ico --add-data "assets;asset
 
 ## 📬 Contact
 
-For technical support: [devmeir.il@gmail.com](mailto\:devmeir.il@gmail.com) Report bugs: project issues
+For technical support: [devmeir.il@gmail.com](mailto\:devmeir.il@gmail.com) <br>
+Report bugs: project issues
 
 Developed by Renan Fumis - 2025
 
