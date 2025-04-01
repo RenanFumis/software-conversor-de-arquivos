@@ -6,15 +6,19 @@ import threading
 from viewmodel.converter_vm import iniciar_conversao, iniciar_extracao, parar_conversao
 
 def criar_interface(page, vm):
+    # Cria os FilePicker primeiro
+    file_picker_origem = ft.FilePicker()
+    file_picker_destino = ft.FilePicker()
+    
+    # Adiciona ao overlay da página imediatamente
+    page.overlay.extend([file_picker_origem, file_picker_destino])
+
     origem = ft.TextField(label="Selecione a pasta de origem", width=500, read_only=True, bgcolor="#1E1E1E", color="white")
     destino = ft.TextField(label="Selecione a pasta de destino", width=500, read_only=True, bgcolor="#1E1E1E", color="white")
     status = ft.Text("", color="white", text_align="center")
     progresso = ft.Text("", color="white", text_align="center")
     convertendo = ft.Text("⏳ Convertendo:", color="white", visible=False, text_align="center")
     arquivo_atual = ft.Text("", color="white", visible=False, text_align="center")
-
-    file_picker_origem = ft.FilePicker(on_result=lambda e: atualizar_origem(e.path))
-    file_picker_destino = ft.FilePicker(on_result=lambda e: atualizar_destino(e.path))
 
     def atualizar_origem(path):
         if path:
@@ -32,10 +36,14 @@ def criar_interface(page, vm):
         page.update()
 
     def selecionar_pasta_origem(e):
-        file_picker_origem.get_directory_path()
+        file_picker_origem.get_directory_path(dialog_title="Selecione a pasta de origem")
 
     def selecionar_pasta_destino(e):
-        file_picker_destino.get_directory_path()
+        file_picker_destino.get_directory_path(dialog_title="Selecione a pasta de destino")
+
+    # Configura os callbacks dos FilePicker depois que eles já foram criados
+    file_picker_origem.on_result = lambda e: atualizar_origem(e.path)
+    file_picker_destino.on_result = lambda e: atualizar_destino(e.path)
 
     def abrir_pasta_destino(e):
         if destino.value:
@@ -99,6 +107,9 @@ def criar_interface(page, vm):
         if erro:
             # Atualiza o campo de status com erros
             status.value = f"⚠️ {erro}"
+            convertendo.visible = False
+            arquivo_atual.visible = False
+            progresso.visible = False
         elif mensagem.startswith("⏳ Convertendo:"):
             # Atualiza os campos específicos de "Convertendo", "Progresso" e "Erros"
             linhas = mensagem.split("\n")
@@ -106,8 +117,11 @@ def criar_interface(page, vm):
             progresso.value = linhas[1]
             if len(linhas) > 2 and linhas[2].startswith("Erros:"):
                 status.value = linhas[2]
-        elif mensagem.startswith("Conversão concluída"):
-            # Atualiza o status final
+            convertendo.visible = True
+            arquivo_atual.visible = True
+            progresso.visible = True
+        elif mensagem.startswith("✅ Conversão concluída"):
+            # Atualiza o status final e oculta os elementos de progresso
             status.value = mensagem
             convertendo.visible = False
             arquivo_atual.visible = False
@@ -115,11 +129,12 @@ def criar_interface(page, vm):
         else:
             # Atualiza o status com mensagens gerais
             status.value = mensagem
+            convertendo.visible = False
+            arquivo_atual.visible = False
+            progresso.visible = False
 
         # Atualiza a interface
         page.update()
-
-    page.overlay.extend([file_picker_origem, file_picker_destino])
 
     def fechar_janela(e):
         if not hasattr(page, 'fechado'):  #Evita múltiplas chamadas
@@ -133,25 +148,24 @@ def criar_interface(page, vm):
 
     return ft.Column([
         ft.Text("Documenta Planejamento e Microfilmagem", size=24, weight="bold", color="#885E43", text_align="center"),
-        ft.Text("Conversor de arquivos para PDF ou paraa TIFF", size=16, color="#DBD0C5", text_align="center"),
+        ft.Text("Conversor de arquivos para PDF ou para TIFF", size=16, color="#DBD0C5", text_align="center"),
         ft.Divider(color="#DBD0C5"),
         ft.Column([
             origem,
-            ft.ElevatedButton("📂 Selecionar pasta de origem ", on_click=selecionar_pasta_origem, bgcolor="#303031", color="#DBD0C5"),
+            ft.ElevatedButton("📂 Selecionar pasta de origem", on_click=selecionar_pasta_origem, bgcolor="#303031", color="#DBD0C5"),
             destino,
-            ft.ElevatedButton("📂 Selecionar pasta de destino ", on_click=selecionar_pasta_destino, bgcolor="#303031", color="#DBD0C5"),
+            ft.ElevatedButton("📂 Selecionar pasta de destino", on_click=selecionar_pasta_destino, bgcolor="#303031", color="#DBD0C5"),
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         
-        # Adiciona o Switch acima dos botões
         ft.Column([
             formato_row,
             ft.Row([
-                ft.ElevatedButton("📦 Extrair Arquivos ZIP ", on_click=extrair_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
-                ft.ElevatedButton("▶️ Converter Arquivos ", on_click=converter_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
-                ft.ElevatedButton("⏹️ Parar ", on_click=parar_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
-                ft.ElevatedButton("📁 Abrir pasta de destino ", on_click=abrir_pasta_destino, bgcolor="#C39A7A", color="#FFFFFF"),
+                ft.ElevatedButton("📦 Extrair Arquivos ZIP", on_click=extrair_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
+                ft.ElevatedButton("▶️ Converter Arquivos", on_click=converter_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
+                ft.ElevatedButton("⏹️ Parar", on_click=parar_arquivos, bgcolor="#C39A7A", color="#FFFFFF"),
+                ft.ElevatedButton("📁 Abrir pasta de destino", on_click=abrir_pasta_destino, bgcolor="#C39A7A", color="#FFFFFF"),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),  # Espaçamento entre Switch e botões
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
         
         convertendo,
         arquivo_atual,
