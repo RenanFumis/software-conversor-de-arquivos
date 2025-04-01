@@ -126,6 +126,7 @@ def criar_interface(page, vm):
             ft.ElevatedButton("📂 Selecionar pasta de destino ", on_click=selecionar_pasta_destino, bgcolor="#303031", color="#DBD0C5"),
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=15),
         
+        # Adiciona o Switch acima dos botões
         ft.Column([
             formato_row,
             ft.Row([

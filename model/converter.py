@@ -14,7 +14,6 @@ from reportlab.lib.utils import ImageReader
 import io
 import tempfile
 
-#Configurações
 MAX_TAREFAS_SIMULTANEAS = 4
 PAGINAS_POR_LOTE = 150
 DPI_PDF = 150

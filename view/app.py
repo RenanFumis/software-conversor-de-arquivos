@@ -4,10 +4,9 @@ from view.ui import criar_interface
 from viewmodel.converter_vm import ConversorViewModel
 
 def main(page: ft.Page):
-    #Configurações da janela
+
     page.title = "Conversor de Arquivos Versão 2.0.0"
     
-    #Caminho relativo para o ícone na pasta assets
     caminho_icone = os.path.join("assets", "transferir.png")
     
     #Define o ícone personalizado

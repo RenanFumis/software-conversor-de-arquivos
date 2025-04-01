@@ -38,6 +38,7 @@ def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
 
 def iniciar_extracao(origem, atualizar_status=None):
 
+
     try:
         extrair_todos_zips(origem, atualizar_status=atualizar_status)
         if atualizar_status:
