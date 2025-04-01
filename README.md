@@ -156,6 +156,9 @@ Sistema: Windows 11 Pro 23H2 (Build 22631)
 
 pyinstaller --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" main.py
 ```
+## 🖥️ Interface do Software
+
+![Interface do Sofwtare](./captura-software-conversor.png)
 
 ## 🤝 Como Contribuir
 - Faça um fork do projeto
