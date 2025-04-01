@@ -3,6 +3,7 @@ import time
 import asyncio
 from model.converter import ConversorModel, extrair_todos_zips
 from model.converter import ConversorModel
+from datetime import datetime
 
 class ConversorViewModel:
     def __init__(self):

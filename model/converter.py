@@ -14,11 +14,12 @@ from reportlab.lib.utils import ImageReader
 import io
 import tempfile
 
+# Configurações
 MAX_TAREFAS_SIMULTANEAS = 4
 PAGINAS_POR_LOTE = 150
 DPI_PDF = 150
 
-#Diretório temporário
+# Diretório temporário
 TEMP_DIR = Path(tempfile.gettempdir()) / "flet_converter_temp"
 TEMP_DIR.mkdir(exist_ok=True)
 
@@ -29,212 +30,262 @@ class ConversorModel:
         for file in TEMP_DIR.glob("*"):
             try:
                 file.unlink()
-            except:
-                pass
+            except Exception as e:
+                print(f"[AVISO] Falha ao limpar arquivo temporário {file}: {e}")
 
     @staticmethod
     async def converter_para_pdf(origem, destino, atualizar_status=None, parar=False, formato="PDF"):
-        """Converte todos os arquivos para PDF ou TIFF, incluindo subpastas."""
+        """
+        Converte arquivos para PDF ou TIFF com tratamento completo de erros
+        Retorna: (total_processado, erros_detalhados)
+        """
         if formato == "TIFF":
             try:
                 import pypdfium2
             except ImportError:
+                erro = "Biblioteca pypdfium2 não instalada. Execute: pip install pypdfium2"
                 if atualizar_status:
-                    atualizar_status("⚠️ Erro: pypdfium2 não está instalado. Instale com: pip install pypdfium2")
-                return
+                    atualizar_status(f"⚠️ {erro}")
+                return 0, [erro]
 
         await ConversorModel.limpar_temp()
         origem = Path(origem)
         destino = Path(destino)
 
-        if not destino.exists():
-            destino.mkdir(parents=True, exist_ok=True)
+        if not origem.exists():
+            erro = f"Pasta de origem não existe: {origem}"
+            if atualizar_status:
+                atualizar_status(f"⚠️ {erro}")
+            return 0, [erro]
 
-        #Conta todos os arquivos em todas as subpastas
-        total_arquivos = 0
+        try:
+            destino.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            erro = f"Falha ao criar pasta destino {destino}: {e}"
+            if atualizar_status:
+                atualizar_status(f"⚠️ {erro}")
+            return 0, [erro]
+
+        # Contagem e validação de arquivos
         arquivos_para_processar = []
+        arquivos_invalidos = []
+        
         for root, _, files in os.walk(origem):
             for file in files:
                 caminho_arquivo = Path(root) / file
-                #Verifica se é um tipo de arquivo suportado
-                if caminho_arquivo.suffix.lower() in ['.pdf', '.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.doc', '.docx']:
-                    total_arquivos += 1
+                ext = caminho_arquivo.suffix.lower()
+                
+                if ext in ['.pdf', '.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.doc', '.docx']:
                     arquivos_para_processar.append(caminho_arquivo)
+                else:
+                    arquivos_invalidos.append(caminho_arquivo.name)
 
-        if total_arquivos == 0:
+        if not arquivos_para_processar:
+            erro = "Nenhum arquivo suportado encontrado para conversão"
             if atualizar_status:
-                atualizar_status("⚠️ Nenhum arquivo suportado encontrado para conversão.")
-            return
+                atualizar_status(f"⚠️ {erro}")
+            return 0, [erro]
 
+        # Processamento principal
         arquivos_processados = 0
-        arquivos_com_erro = []
+        erros_detalhados = []
         start_time = time.time()
         semaforo = asyncio.Semaphore(MAX_TAREFAS_SIMULTANEAS)
 
         async def processar_arquivo(caminho_arquivo):
-            nonlocal arquivos_processados
+            nonlocal arquivos_processados, erros_detalhados
             async with semaforo:
                 if parar:
                     return
+
                 try:
-                    #Calcula o caminho relativo
                     caminho_relativo = caminho_arquivo.relative_to(origem)
-                    destino_arquivo = destino / caminho_relativo
+                    ext = caminho_arquivo.suffix.lower()
                     
-                    if formato == "TIFF":
-                        destino_arquivo = destino_arquivo.with_suffix('.tiff')
-                    else:
-                        destino_arquivo = destino_arquivo.with_suffix('.pdf')
+                    # Define destino com extensão correta
+                    destino_arquivo = destino / caminho_relativo
+                    destino_arquivo = destino_arquivo.with_suffix('.tiff' if formato == "TIFF" else '.pdf')
+                    
+                    # Cria estrutura de pastas
+                    try:
+                        destino_arquivo.parent.mkdir(parents=True, exist_ok=True)
+                    except Exception as e:
+                        raise Exception(f"Falha ao criar diretório: {e}")
 
-                    destino_arquivo.parent.mkdir(parents=True, exist_ok=True)
-
-                    #Processa conforme o tipo
+                    # Executa conversão conforme formato
                     if formato == "PDF":
-                        if caminho_arquivo.suffix.lower() == '.pdf':
+                        if ext == '.pdf':
                             await ConversorModel.ajustar_pdf(caminho_arquivo, destino_arquivo)
-                        elif caminho_arquivo.suffix.lower() in ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif']:
+                        elif ext in ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif']:
                             await ConversorModel.converter_imagem_para_pdf(caminho_arquivo, destino_arquivo)
-                        elif caminho_arquivo.suffix.lower() in ['.doc', '.docx']:
+                        elif ext in ['.doc', '.docx']:
                             await ConversorModel.converter_word_para_pdf(caminho_arquivo, destino_arquivo)
                     elif formato == "TIFF":
-                        if caminho_arquivo.suffix.lower() in ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.pdf']:
-                            await ConversorModel.converter_imagem_para_tiff(caminho_arquivo, destino_arquivo)
+                        await ConversorModel.converter_para_tiff(caminho_arquivo, destino_arquivo)
 
+                    # Atualiza status
                     arquivos_processados += 1
                     if atualizar_status:
-                        atualizar_status(f"⏳ Convertendo: {caminho_arquivo.name}\nStatus... ({arquivos_processados}/{total_arquivos})")
+                        status_msg = (
+                            f"⏳ Convertendo: {caminho_arquivo.name}\n"
+                            f"Progresso: {arquivos_processados}/{len(arquivos_para_processar)}\n"
+                            f"Erros: {len(erros_detalhados)}"
+                        )
+                        atualizar_status(status_msg)
 
                 except Exception as e:
-                    print(f"[ERRO] Falha ao processar {caminho_arquivo}: {e}")
-                    arquivos_com_erro.append(caminho_arquivo.name)
+                    erro_msg = f"{caminho_arquivo.name}: {type(e).__name__} - {str(e)}"
+                    erros_detalhados.append(erro_msg)
+                    if atualizar_status:
+                        atualizar_status("", erro=erro_msg)  # Passa o erro para a interface
+                    print(f"[ERRO] {erro_msg}")
 
-        #Cria e executa todas as tarefas
+        # Executa tarefas em paralelo
         tarefas = [processar_arquivo(arquivo) for arquivo in arquivos_para_processar]
         await asyncio.gather(*tarefas)
         await ConversorModel.limpar_temp()
 
-        #Cálculo do tempo decorrido
+        # Gera relatório final
         tempo_total = time.time() - start_time
         horas, resto = divmod(tempo_total, 3600)
         minutos, segundos = divmod(resto, 60)
         tempo_formatado = f"{int(horas)}h {int(minutos)}m {int(segundos)}s"
 
         if atualizar_status:
-            mensagem = (f"Conversão concluída em {tempo_formatado}\n"
-                       f"Processados: {arquivos_processados}\n"
-                       f"Erros: {len(arquivos_com_erro)}")
-            atualizar_status(mensagem)
+            status_msg = [
+                f"✅ Conversão concluída em {tempo_formatado}",
+                f"Arquivos processados: {arquivos_processados}",
+                f"Arquivos com erro: {len(erros_detalhados)}",
+                f"Arquivos ignorados: {len(arquivos_invalidos)}"
+            ]
+            
+            if erros_detalhados:
+                status_msg.append("\nErros encontrados:")
+                status_msg.extend(f"• {erro}" for erro in erros_detalhados[:10])
+                if len(erros_detalhados) > 10:
+                    status_msg.append(f"• ... ({len(erros_detalhados)-10} erros omitidos)")
+            
+            if arquivos_invalidos:
+                status_msg.append("\nArquivos não suportados:")
+                status_msg.extend(f"• {arquivo}" for arquivo in arquivos_invalidos[:3])
+                if len(arquivos_invalidos) > 3:
+                    status_msg.append(f"• ... ({len(arquivos_invalidos)-3} arquivos omitidos)")
+
+            atualizar_status("\n".join(status_msg))
+
+        return arquivos_processados, erros_detalhados
 
     @staticmethod
-    async def converter_imagem_para_pdf(caminho_arquivo, destino_arquivo):
-        """Converte imagem para PDF A4 com proporção mantida"""
+    async def converter_imagem_para_pdf(caminho_origem, caminho_destino):
+        """Converte uma imagem para PDF usando Pillow e ReportLab"""
         try:
-            with Image.open(caminho_arquivo) as img:
-                #Converte para RGB se for PNG com transparência
-                if img.mode in ('RGBA', 'P'):
-                    img = img.convert('RGB')
-                
-                #Cria PDF em memória
-                packet = io.BytesIO()
-                can = canvas.Canvas(packet, pagesize=A4)
-                
-                #Calcula dimensões mantendo proporção
+            with Image.open(caminho_origem) as img:
+                # Converte para RGB se for PNG com transparência
+                if img.mode in ('RGBA', 'LA'):
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    background.paste(img, mask=img.split()[-1])
+                    img = background
+
+                img_io = io.BytesIO()
+                img.save(img_io, format='JPEG', quality=95)
+                img_io.seek(0)
+
+                # Cria PDF com ReportLab
+                c = canvas.Canvas(str(caminho_destino), pagesize=A4)
                 img_width, img_height = img.size
-                a4_width, a4_height = A4
-                ratio = min(a4_width/img_width, a4_height/img_height) * 0.9  # 90% da página
-                new_width = img_width * ratio
-                new_height = img_height * ratio
-                x = (a4_width - new_width) / 2
-                y = (a4_height - new_height) / 2
+                aspect = img_height / float(img_width)
+
+                pdf_width = A4[0] - 2 * 72  # Margens de 1 polegada
+                pdf_height = pdf_width * aspect
+
+                if pdf_height > A4[1] - 2 * 72:  # Ajuste se for muito alto
+                    pdf_height = A4[1] - 2 * 72
+                    pdf_width = pdf_height / aspect
+
+                x = (A4[0] - pdf_width) / 2
+                y = (A4[1] - pdf_height) / 2
+
+                c.drawImage(ImageReader(img_io), x, y, pdf_width, pdf_height)
+                c.save()
                 
-                #Salvar imagem em memória
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG', quality=95)
-                img_byte_arr.seek(0)
-                
-                #Adicionar ao PDF
-                can.drawImage(ImageReader(img_byte_arr), x, y, width=new_width, height=new_height)
-                can.save()
-                
-                #Salvar PDF final
-                with open(destino_arquivo, 'wb') as f:
-                    f.write(packet.getvalue())
         except Exception as e:
-            print(f"[ERRO] Falha ao converter {caminho_arquivo}: {e}")
-            raise
+            raise Exception(f"Falha ao converter imagem para PDF: {e}")
 
     @staticmethod
-    async def ajustar_pdf(caminho_arquivo, destino_arquivo):
-        """Copia PDFs existentes (pode ser expandido para redimensionar)"""
+    async def ajustar_pdf(caminho_origem, caminho_destino):
+        """Otimiza e ajusta PDFs existentes"""
         try:
-            shutil.copy2(caminho_arquivo, destino_arquivo)
+            pdf = pdfium.PdfDocument(caminho_origem)
+            pdf.save(caminho_destino)
         except Exception as e:
-            print(f"[ERRO] Falha ao copiar PDF {caminho_arquivo}: {e}")
-            raise
+            raise Exception(f"Falha ao processar PDF: {e}")
 
     @staticmethod
-    async def converter_word_para_pdf(caminho_arquivo, destino_arquivo):
-        """Converte Word para PDF usando docx2pdf"""
+    async def converter_word_para_pdf(caminho_origem, caminho_destino):
+        """Converte documentos Word para PDF"""
         try:
-            docx2pdf_convert(str(caminho_arquivo), str(destino_arquivo))
+            # Usa docx2pdf que funciona tanto para .doc quanto .docx
+            docx2pdf_convert(str(caminho_origem), str(caminho_destino))
         except Exception as e:
-            print(f"[ERRO] Falha ao converter Word {caminho_arquivo}: {e}")
-            raise
+            raise Exception(f"Falha ao converter documento Word: {e}")
 
     @staticmethod
-    async def converter_imagem_para_tiff(caminho_arquivo, destino_arquivo):
-        """Converte imagem ou PDF para TIFF (multipágina para PDFs)"""
+    async def converter_para_tiff(caminho_origem, caminho_destino):
+        """Converte arquivos para TIFF"""
         try:
-            if caminho_arquivo.suffix.lower() == '.pdf':
-                #Converter PDF para TIFF multipágina
-                pdf = pdfium.PdfDocument(str(caminho_arquivo))
-                images = []
-                
-                #Renderiza as páginas
-                for page_number in range(len(pdf)):
-                    page = pdf.get_page(page_number)
-                    bitmap = page.render(scale=DPI_PDF/72)
-                    pil_image = bitmap.to_pil()
-                    images.append(pil_image)
-                
-                #Salva como TIFF multipágina
-                if len(images) > 0:
-                    images[0].save(
-                        destino_arquivo,
-                        format="TIFF",
-                        compression="tiff_deflate",
-                        save_all=True,
-                        append_images=images[1:] if len(images) > 1 else []
-                    )
+            if caminho_origem.suffix.lower() == '.pdf':
+                # Converter PDF para TIFF
+                pdf = pdfium.PdfDocument(caminho_origem)
+                page = pdf[0]  # Pega a primeira página
+                bitmap = page.render(scale=DPI_PDF/72)
+                pil_image = bitmap.to_pil()
+                pil_image.save(caminho_destino, format='TIFF', compression='tiff_deflate')
             else:
-                #Converter imagem para TIFF
-                with Image.open(caminho_arquivo) as img:
-                    img.save(destino_arquivo, format="TIFF", compression="tiff_deflate")
-                    
+                # Converter imagem para TIFF
+                with Image.open(caminho_origem) as img:
+                    img.save(caminho_destino, format='TIFF', compression='tiff_deflate')
         except Exception as e:
-            print(f"[ERRO] Falha ao converter {caminho_arquivo}: {e}")
-            raise
+            raise Exception(f"Falha ao converter para TIFF: {e}")
 
 def extrair_todos_zips(caminho_origem, atualizar_status=None):
-
+    """Extrai arquivos compactados com tratamento de erros"""
+    erros = []
+    
     for arquivo in os.listdir(caminho_origem):
         caminho_arquivo = os.path.join(caminho_origem, arquivo)
-        if arquivo.endswith(".zip"):
-            with zipfile.ZipFile(caminho_arquivo, 'r') as zip_ref:
-                zip_ref.extractall(caminho_origem)
-                if atualizar_status:
-                    atualizar_status(f"Extraído: {arquivo}")
-        elif arquivo.endswith(".tar") or arquivo.endswith(".tar.gz") or arquivo.endswith(".tgz"):
-            with tarfile.open(caminho_arquivo, 'r') as tar_ref:
-                tar_ref.extractall(caminho_origem)
-                if atualizar_status:
-                    atualizar_status(f"Extraído: {arquivo}")
-
-    #Espera 5 segundos antes de excluir os arquivos ZIP/TAR
-    time.sleep(5)
-    for arquivo in os.listdir(caminho_origem):
-        caminho_arquivo = os.path.join(caminho_origem, arquivo)
-        if arquivo.endswith((".zip", ".tar", ".tar.gz", ".tgz")):
-            os.remove(caminho_arquivo)
+        try:
+            if arquivo.endswith(".zip"):
+                with zipfile.ZipFile(caminho_arquivo, 'r') as zip_ref:
+                    zip_ref.extractall(caminho_origem)
+                    if atualizar_status:
+                        atualizar_status(f"✅ Extraído: {arquivo}")
+            elif any(arquivo.endswith(ext) for ext in [".tar", ".tar.gz", ".tgz"]):
+                with tarfile.open(caminho_arquivo, 'r') as tar_ref:
+                    tar_ref.extractall(caminho_origem)
+                    if atualizar_status:
+                        atualizar_status(f"✅ Extraído: {arquivo}")
+        except Exception as e:
+            erro = f"Erro ao extrair {arquivo}: {e}"
+            erros.append(erro)
             if atualizar_status:
-                atualizar_status(f"Removido: {arquivo}")
+                atualizar_status(f"⚠️ {erro}")
+            print(f"[ERRO] {erro}")
+
+    time.sleep(5)  # Espera para exclusão segura
+    
+    # Remove arquivos compactados
+    for arquivo in os.listdir(caminho_origem):
+        caminho_arquivo = os.path.join(caminho_origem, arquivo)
+        if any(arquivo.endswith(ext) for ext in [".zip", ".tar", ".tar.gz", ".tgz"]):
+            try:
+                os.remove(caminho_arquivo)
+                if atualizar_status:
+                    atualizar_status(f"🗑️ Removido: {arquivo}")
+            except Exception as e:
+                erro = f"Falha ao remover {arquivo}: {e}"
+                erros.append(erro)
+                if atualizar_status:
+                    atualizar_status(f"⚠️ {erro}")
+                print(f"[ERRO] {erro}")
+
+    return erros
