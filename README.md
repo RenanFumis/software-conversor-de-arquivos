@@ -171,7 +171,7 @@ pyinstaller --onefile --windowed --icon=assets/icon.ico --add-data "assets;asset
 
 ## 📬 Contato
 
-Para suporte técnico: devmeir.il@gmail.com
+Para suporte técnico: devmeir.il@gmail.com<br>
 Relatar bugs: issues do projeto
 
 
