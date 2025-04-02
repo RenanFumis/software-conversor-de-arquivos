@@ -12,9 +12,9 @@ class ConversorViewModel:
     async def converter(self, origem, destino, atualizar_status=None, formato="PDF"):
         try:
             total, erros = await ConversorModel.converter_para_pdf(
-                origem, destino, 
+                origem, destino,
                 atualizar_status,
-                self.parar, 
+                self.parar,
                 formato
             )
             return (total, erros)
@@ -23,17 +23,6 @@ class ConversorViewModel:
             if atualizar_status:
                 atualizar_status(f"⚠️ Erro crítico: {str(e)}")
             return (0, [str(e)])
-
-        inicio = time.time()
-        await ConversorModel.converter_para_pdf(origem, destino, atualizar_status, self.parar, formato)
-        fim = time.time()
-        tempo_total = fim - inicio
-
-        horas, resto = divmod(tempo_total, 3600)
-        minutos, segundos = divmod(resto, 60)
-        tempo_formatado = f"{int(horas)}h {int(minutos)}m {int(segundos)}s"
-
-        return f"✅ {total_arquivos} arquivos convertidos em {tempo_formatado}."
 
 def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
     vm = ConversorViewModel()
@@ -46,13 +35,13 @@ def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
             vm.converter(origem, destino, atualizar_status, formato)
         )
         
-        # Calcula o tempo decorrido
+        #Calcula o tempo do processo
         tempo_decorrido = time.time() - inicio
         horas, resto = divmod(tempo_decorrido, 3600)
         minutos, segundos = divmod(resto, 60)
         tempo_formatado = f"{int(horas)}h {int(minutos)}m {int(segundos)}s"
         
-        # Mensagem de resumo
+        #Mensagem do status
         mensagem_resumo = [
             f"✅ Conversão concluída em {tempo_formatado}",
             f"Arquivos convertidos: {total_processados - len(erros)}",
@@ -62,7 +51,7 @@ def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
         
         if erros:
             caminho_relatorio = gerar_relatorio_erros(erros, destino)
-            mensagem_resumo.append(f"\nRelatório de erros gerado em:\n{os.path.basename(caminho_relatorio)}")
+            mensagem_resumo.append(f"\nRelatório de erros gerado na pasta Destino em:\n{os.path.basename(caminho_relatorio)}")
         
         if atualizar_status:
             atualizar_status("\n".join(mensagem_resumo))
@@ -86,14 +75,14 @@ def parar_conversao(vm):
     vm.parar = True
 
 def gerar_relatorio_erros(erros, pasta_destino):
-    """Gera arquivo TXT com erros na pasta de destino"""
+    #Aqui vai gerar um arquivo TXT com erros na pasta de destino
     if not erros:
         return None
         
     try:
         from datetime import datetime
         os.makedirs(pasta_destino, exist_ok=True)
-        nome_arquivo = f"erros_conversao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        nome_arquivo = f"erros_conversao_{datetime.now().strftime('%d%m%Y_%H%M%S')}.txt"
         caminho_completo = os.path.join(pasta_destino, nome_arquivo)
         
         with open(caminho_completo, 'w', encoding='utf-8') as f:

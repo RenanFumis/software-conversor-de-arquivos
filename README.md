@@ -12,13 +12,16 @@ Software desktop desenvolvido em Python com interface em Flet, projetado para co
 - **Conversão para PDF A4**:
   - ✅ Imagens (JPG, PNG, BMP, GIF, TIFF) → PDF
   - ✅ Word (DOC/DOCX) → PDF
-  - ✅ Otimização de PDFs existentes
+  - ✅ Otimização de PDFs existentes<br><br>
 
 - **Conversão para TIFF**:
   - ✅ Imagens (JPG, PNG, BMP, GIF, TIFF) → TIFF
   - ✅ PDFs → TIFF multipágina
   - ✅ Word (DOC/DOCX) → TIFF
-  - ✅ Otimização de TIFFs existentes
+  - ✅ Otimização de TIFFs existentes<br><br>
+
+- **Relatório de Erros**:
+  - ✅ Geração automática de um arquivo `.txt` com a lista de arquivos que apresentaram erros durante a conversão.
 
  ## Principais Características Técnicas
  
@@ -194,6 +197,7 @@ Desktop software developed in Python with a Flet-based interface, designed to co
   - ✅ Images (JPG, PNG, BMP, GIF, TIFF) → PDF
   - ✅ Word (DOC/DOCX) → PDF
   - ✅ Optimization of existing PDFs
+<br><br>
 
 - **Conversion to TIFF**:
 
@@ -201,6 +205,9 @@ Desktop software developed in Python with a Flet-based interface, designed to co
   - ✅ PDFs → Multipage TIFF
   - ✅ Word (DOC/DOCX) → TIFF
   - ✅ Optimization of existing TIFFs
+  <br><br>
+- **Error Report**:
+  - ✅ Automatic generation of a .txt file with a list of files that encountered errors during conversion.
 
 ## 🔧 Key Technical Features
 

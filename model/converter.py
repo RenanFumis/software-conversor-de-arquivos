@@ -14,19 +14,19 @@ from reportlab.lib.utils import ImageReader
 import io
 import tempfile
 
-# Configurações
+#Configurações
 MAX_TAREFAS_SIMULTANEAS = 4
 PAGINAS_POR_LOTE = 150
 DPI_PDF = 150
 
-# Diretório temporário
+#Diretório temporário
 TEMP_DIR = Path(tempfile.gettempdir()) / "flet_converter_temp"
 TEMP_DIR.mkdir(exist_ok=True)
 
 class ConversorModel:
     @staticmethod
     async def limpar_temp():
-        """Limpa arquivos temporários"""
+        #Aqui limpa os arquivos temporários
         for file in TEMP_DIR.glob("*"):
             try:
                 file.unlink()
@@ -35,10 +35,10 @@ class ConversorModel:
 
     @staticmethod
     async def converter_para_pdf(origem, destino, atualizar_status=None, parar=False, formato="PDF"):
-        """
-        Converte arquivos para PDF ou TIFF com tratamento completo de erros
-        Retorna: (total_processado, erros_detalhados)
-        """
+
+        #Converte arquivos para PDF ou TIFF com tratamento completo de erros
+        #Retorna: (total_processado, erros_detalhados)
+        
         if formato == "TIFF":
             try:
                 import pypdfium2
@@ -66,7 +66,7 @@ class ConversorModel:
                 atualizar_status(f"⚠️ {erro}")
             return 0, [erro]
 
-        # Contagem e validação de arquivos
+        #Contagem e validação de arquivos
         arquivos_para_processar = []
         arquivos_invalidos = []
         
@@ -86,7 +86,7 @@ class ConversorModel:
                 atualizar_status(f"⚠️ {erro}")
             return 0, [erro]
 
-        # Processamento principal
+        #Este é o processamento principal
         arquivos_processados = 0
         erros_detalhados = []
         start_time = time.time()
@@ -102,17 +102,17 @@ class ConversorModel:
                     caminho_relativo = caminho_arquivo.relative_to(origem)
                     ext = caminho_arquivo.suffix.lower()
                     
-                    # Define destino com extensão correta
+                    #Define destino com extensão correta
                     destino_arquivo = destino / caminho_relativo
                     destino_arquivo = destino_arquivo.with_suffix('.tiff' if formato == "TIFF" else '.pdf')
                     
-                    # Cria estrutura de pastas
+                    #Cria estrutura de pastas
                     try:
                         destino_arquivo.parent.mkdir(parents=True, exist_ok=True)
                     except Exception as e:
                         raise Exception(f"Falha ao criar diretório: {e}")
 
-                    # Executa conversão conforme formato
+                    #Executa conversão conforme formato
                     if formato == "PDF":
                         if ext == '.pdf':
                             await ConversorModel.ajustar_pdf(caminho_arquivo, destino_arquivo)
@@ -123,7 +123,7 @@ class ConversorModel:
                     elif formato == "TIFF":
                         await ConversorModel.converter_para_tiff(caminho_arquivo, destino_arquivo)
 
-                    # Atualiza status
+                    #Atualiza status
                     arquivos_processados += 1
                     if atualizar_status:
                         status_msg = (
@@ -137,15 +137,15 @@ class ConversorModel:
                     erro_msg = f"{caminho_arquivo.name}: {type(e).__name__} - {str(e)}"
                     erros_detalhados.append(erro_msg)
                     if atualizar_status:
-                        atualizar_status("", erro=erro_msg)  # Passa o erro para a interface
+                        atualizar_status("", erro=erro_msg)  #Passa o erro para a interface
                     print(f"[ERRO] {erro_msg}")
 
-        # Executa tarefas em paralelo
+        #Executa tarefas em paralelo
         tarefas = [processar_arquivo(arquivo) for arquivo in arquivos_para_processar]
         await asyncio.gather(*tarefas)
         await ConversorModel.limpar_temp()
 
-        # Gera relatório final
+        #Gera relatório final
         tempo_total = time.time() - start_time
         horas, resto = divmod(tempo_total, 3600)
         minutos, segundos = divmod(resto, 60)
@@ -177,10 +177,10 @@ class ConversorModel:
 
     @staticmethod
     async def converter_imagem_para_pdf(caminho_origem, caminho_destino):
-        """Converte uma imagem para PDF usando Pillow e ReportLab"""
+        #Aqui converte uma imagem para PDF usando Pillow e ReportLab
         try:
             with Image.open(caminho_origem) as img:
-                # Converte para RGB se for PNG com transparência
+                #Converte para RGB se for PNG com transparência
                 if img.mode in ('RGBA', 'LA'):
                     background = Image.new('RGB', img.size, (255, 255, 255))
                     background.paste(img, mask=img.split()[-1])
@@ -190,15 +190,15 @@ class ConversorModel:
                 img.save(img_io, format='JPEG', quality=95)
                 img_io.seek(0)
 
-                # Cria PDF com ReportLab
+                #Cria PDF com ReportLab
                 c = canvas.Canvas(str(caminho_destino), pagesize=A4)
                 img_width, img_height = img.size
                 aspect = img_height / float(img_width)
 
-                pdf_width = A4[0] - 2 * 72  # Margens de 1 polegada
+                pdf_width = A4[0] - 2 * 72  #Margens de 1 polegada
                 pdf_height = pdf_width * aspect
 
-                if pdf_height > A4[1] - 2 * 72:  # Ajuste se for muito alto
+                if pdf_height > A4[1] - 2 * 72:  #Ajuste se for muito alto
                     pdf_height = A4[1] - 2 * 72
                     pdf_width = pdf_height / aspect
 
@@ -213,7 +213,7 @@ class ConversorModel:
 
     @staticmethod
     async def ajustar_pdf(caminho_origem, caminho_destino):
-        """Otimiza e ajusta PDFs existentes"""
+        #Otimiza e ajusta PDFs existentes
         try:
             pdf = pdfium.PdfDocument(caminho_origem)
             pdf.save(caminho_destino)
@@ -224,7 +224,7 @@ class ConversorModel:
     async def converter_word_para_pdf(caminho_origem, caminho_destino):
         """Converte documentos Word para PDF"""
         try:
-            # Usa docx2pdf que funciona tanto para .doc quanto .docx
+            #Usa docx2pdf que funciona tanto para .doc quanto .docx
             docx2pdf_convert(str(caminho_origem), str(caminho_destino))
         except Exception as e:
             raise Exception(f"Falha ao converter documento Word: {e}")
@@ -234,14 +234,14 @@ class ConversorModel:
         """Converte arquivos para TIFF"""
         try:
             if caminho_origem.suffix.lower() == '.pdf':
-                # Converter PDF para TIFF
+                #Converter PDF para TIFF
                 pdf = pdfium.PdfDocument(caminho_origem)
-                page = pdf[0]  # Pega a primeira página
+                page = pdf[0]  #Pega a primeira página
                 bitmap = page.render(scale=DPI_PDF/72)
                 pil_image = bitmap.to_pil()
                 pil_image.save(caminho_destino, format='TIFF', compression='tiff_deflate')
             else:
-                # Converter imagem para TIFF
+                #Converter imagem para TIFF
                 with Image.open(caminho_origem) as img:
                     img.save(caminho_destino, format='TIFF', compression='tiff_deflate')
         except Exception as e:
@@ -271,9 +271,9 @@ def extrair_todos_zips(caminho_origem, atualizar_status=None):
                 atualizar_status(f"⚠️ {erro}")
             print(f"[ERRO] {erro}")
 
-    time.sleep(5)  # Espera para exclusão segura
+    time.sleep(5)  #Espera 5segundos para exclusão segura
     
-    # Remove arquivos compactados
+    #Remove arquivos compactados
     for arquivo in os.listdir(caminho_origem):
         caminho_arquivo = os.path.join(caminho_origem, arquivo)
         if any(arquivo.endswith(ext) for ext in [".zip", ".tar", ".tar.gz", ".tgz"]):
