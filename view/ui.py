@@ -99,41 +99,17 @@ def criar_interface(page, vm):
         page.update()
 
     def atualizar_status(mensagem, erro=None):
-        """
-        Atualiza o status na interface.
-        :param mensagem: Mensagem principal de status.
-        :param erro: Mensagem de erro opcional.
-        """
         if erro:
-            # Atualiza o campo de status com erros
             status.value = f"⚠️ {erro}"
-            convertendo.visible = False
-            arquivo_atual.visible = False
-            progresso.visible = False
-        elif mensagem.startswith("⏳ Convertendo:"):
-            # Atualiza os campos específicos de "Convertendo", "Progresso" e "Erros"
-            linhas = mensagem.split("\n")
-            arquivo_atual.value = linhas[0].replace("⏳ Convertendo: ", "")
-            progresso.value = linhas[1]
-            if len(linhas) > 2 and linhas[2].startswith("Erros:"):
-                status.value = linhas[2]
-            convertendo.visible = True
-            arquivo_atual.visible = True
-            progresso.visible = True
-        elif mensagem.startswith("✅ Conversão concluída"):
-            # Atualiza o status final e oculta os elementos de progresso
-            status.value = mensagem
-            convertendo.visible = False
-            arquivo_atual.visible = False
-            progresso.visible = False
         else:
-            # Atualiza o status com mensagens gerais
             status.value = mensagem
+        
+        # Esconde os elementos de progresso ao finalizar
+        if mensagem.startswith("✅"):
             convertendo.visible = False
             arquivo_atual.visible = False
             progresso.visible = False
-
-        # Atualiza a interface
+        
         page.update()
 
     def fechar_janela(e):
