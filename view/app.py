@@ -5,19 +5,12 @@ from viewmodel.converter_vm import ConversorViewModel
 
 def main(page: ft.Page):
 
-    page.title = "Conversor de Arquivos Versão 2.0.0"
-    
-    caminho_icone = os.path.join("assets", "transferir.png")
-    
-    #Define o ícone personalizado
-    page.window_icon = caminho_icone
-    page.icon = "assets/transferir.png"
-    
-    #Configurações adicionais da janela
+    page.title = "Conversor de Arquivos Versão 2.0.1"
+
     page.window_width = 400
     page.window_height = 600
     page.window_resizable = False
-    page.bgcolor = "#1B1B1B"
+    page.bgcolor = "#020202"
 
     #Atualiza a página para aplicar as configurações
     page.update()

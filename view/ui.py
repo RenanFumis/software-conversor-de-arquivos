@@ -6,11 +6,11 @@ import threading
 from viewmodel.converter_vm import iniciar_conversao, iniciar_extracao, parar_conversao
 
 def criar_interface(page, vm):
-    # Cria os FilePicker primeiro
+    #Primeiramente cria os FilePicker
     file_picker_origem = ft.FilePicker()
     file_picker_destino = ft.FilePicker()
     
-    # Adiciona ao overlay da página imediatamente
+    #Adiciona ao overlay (elementos sobrepostos na interface) da página imediatamente
     page.overlay.extend([file_picker_origem, file_picker_destino])
 
     origem = ft.TextField(label="Selecione a pasta de origem", width=500, read_only=True, bgcolor="#1E1E1E", color="white")
@@ -18,7 +18,6 @@ def criar_interface(page, vm):
     status = ft.Text("", color="white", text_align="center")
     progresso = ft.Text("", color="white", text_align="center")
     convertendo = ft.Text("⏳ Convertendo:", color="white", visible=False, text_align="center")
-    arquivo_atual = ft.Text("", color="white", visible=False, text_align="center")
 
     def atualizar_origem(path):
         if path:
@@ -41,7 +40,7 @@ def criar_interface(page, vm):
     def selecionar_pasta_destino(e):
         file_picker_destino.get_directory_path(dialog_title="Selecione a pasta de destino")
 
-    # Configura os callbacks dos FilePicker depois que eles já foram criados
+    #Configura os callbacks dos FilePicker, logo depois que eles já foram criados
     file_picker_origem.on_result = lambda e: atualizar_origem(e.path)
     file_picker_destino.on_result = lambda e: atualizar_destino(e.path)
 
@@ -84,7 +83,6 @@ def criar_interface(page, vm):
         else:
             status.value = ""
             convertendo.visible = True
-            arquivo_atual.visible = True
             progresso.visible = True
             page.update()
             formato = "TIFF" if formato_saida.value else "PDF"  # Define o formato com base no Switch
@@ -94,46 +92,20 @@ def criar_interface(page, vm):
         parar_conversao(vm)
         status.value = "Conversão interrompida pelo usuário."
         convertendo.visible = False
-        arquivo_atual.visible = False
         progresso.visible = False
         page.update()
 
     def atualizar_status(mensagem, erro=None):
-        """
-        Atualiza o status na interface.
-        :param mensagem: Mensagem principal de status.
-        :param erro: Mensagem de erro opcional.
-        """
         if erro:
-            # Atualiza o campo de status com erros
             status.value = f"⚠️ {erro}"
-            convertendo.visible = False
-            arquivo_atual.visible = False
-            progresso.visible = False
-        elif mensagem.startswith("⏳ Convertendo:"):
-            # Atualiza os campos específicos de "Convertendo", "Progresso" e "Erros"
-            linhas = mensagem.split("\n")
-            arquivo_atual.value = linhas[0].replace("⏳ Convertendo: ", "")
-            progresso.value = linhas[1]
-            if len(linhas) > 2 and linhas[2].startswith("Erros:"):
-                status.value = linhas[2]
-            convertendo.visible = True
-            arquivo_atual.visible = True
-            progresso.visible = True
-        elif mensagem.startswith("✅ Conversão concluída"):
-            # Atualiza o status final e oculta os elementos de progresso
-            status.value = mensagem
-            convertendo.visible = False
-            arquivo_atual.visible = False
-            progresso.visible = False
         else:
-            # Atualiza o status com mensagens gerais
             status.value = mensagem
+        
+        #Assim que finaliza, os status de progresso são ocultados
+        if mensagem.startswith("✅"):
             convertendo.visible = False
-            arquivo_atual.visible = False
             progresso.visible = False
-
-        # Atualiza a interface
+        
         page.update()
 
     def fechar_janela(e):
@@ -167,8 +139,6 @@ def criar_interface(page, vm):
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
         ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
         
-        convertendo,
-        arquivo_atual,
         progresso,
         status
-    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+    ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10)
