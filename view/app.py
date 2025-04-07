@@ -6,7 +6,7 @@ from viewmodel.converter_vm import ConversorViewModel
 def main(page: ft.Page):
 
     page.title = "Conversor de Arquivos Versão 2.0.1"
-
+    
     page.window_width = 400
     page.window_height = 600
     page.window_resizable = False
