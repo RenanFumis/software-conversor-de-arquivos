@@ -177,28 +177,34 @@ class ConversorModel:
 
     @staticmethod
     async def converter_imagem_para_pdf(caminho_origem, caminho_destino):
-        #Aqui converte uma imagem para PDF usando Pillow e ReportLab
+        #Converte uma imagem para PDF usando Pillow e ReportLab
         try:
             with Image.open(caminho_origem) as img:
-                #Converte para RGB se for PNG com transparência
-                if img.mode in ('RGBA', 'LA'):
+                #Converte para RGB se for PNG com transparência ou modo P (paleta)
+                if img.mode in ('RGBA', 'LA', 'P', '1'):  # Adicionamos 'P' e '1' (preto e branco)
                     background = Image.new('RGB', img.size, (255, 255, 255))
-                    background.paste(img, mask=img.split()[-1])
+                    
+                    if img.mode == 'RGBA':
+                        background.paste(img, mask=img.split()[-1])  # Preserva transparência
+                    else:
+                        background.paste(img)  # Para modos P e 1
+                    
                     img = background
+                elif img.mode == 'CMYK':
+                    img = img.convert('RGB')
 
                 img_io = io.BytesIO()
                 img.save(img_io, format='JPEG', quality=95)
                 img_io.seek(0)
 
-                #Cria PDF com ReportLab
                 c = canvas.Canvas(str(caminho_destino), pagesize=A4)
                 img_width, img_height = img.size
                 aspect = img_height / float(img_width)
 
-                pdf_width = A4[0] - 2 * 72  #Margens de 1 polegada
+                pdf_width = A4[0] - 2 * 72  # Margens de 1 polegada
                 pdf_height = pdf_width * aspect
 
-                if pdf_height > A4[1] - 2 * 72:  #Ajuste se for muito alto
+                if pdf_height > A4[1] - 2 * 72:  # Ajuste se for muito alto
                     pdf_height = A4[1] - 2 * 72
                     pdf_width = pdf_height / aspect
 
