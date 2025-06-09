@@ -2,77 +2,92 @@ import os
 import time
 import asyncio
 from model.converter import ConversorModel, extrair_todos_zips
-from model.converter import ConversorModel
 from datetime import datetime
+from pathlib import Path
 
 class ConversorViewModel:
     def __init__(self):
         self.parar = False
+        self.arquivos_protegidos = []
+        self.resultados_protegidos = []
+        self.status_atual = ""
+        self.erro_atual = None
 
-    async def converter(self, origem, destino, atualizar_status=None, formato="PDF"):
+    def atualizar_status(self, mensagem, erro=None):
+        """Atualiza o status atual do processamento"""
+        self.status_atual = mensagem
+        self.erro_atual = erro
+
+    async def extrair_arquivos(self, caminho_origem, callback_status=None):
+        """Extrai arquivos compactados"""
         try:
-            total, erros = await ConversorModel.converter_para_pdf(
-                origem, destino,
-                atualizar_status,
-                self.parar,
-                formato
-            )
-            return (total, erros)
-            
+            erros = extrair_todos_zips(caminho_origem, callback_status)
+            return len(erros) == 0, erros
         except Exception as e:
-            if atualizar_status:
-                atualizar_status(f"⚠️ Erro crítico: {str(e)}")
+            return False, [str(e)]
+
+    async def converter(self, origem, destino, callback_status=None, formato="PDF"):
+        """Inicia o processo de conversão"""
+        try:
+            self.parar = False
+            return await ConversorModel.converter_para_pdf(
+                origem, destino, callback_status, self.parar, formato
+            )
+        except Exception as e:
             return (0, [str(e)])
 
-def iniciar_conversao(origem, destino, atualizar_status=None, formato="PDF"):
-    vm = ConversorViewModel()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    try:
-        inicio = time.time()
-        total_processados, erros = loop.run_until_complete(
-            vm.converter(origem, destino, atualizar_status, formato)
+    def parar_conversao(self):
+        """Para o processo de conversão"""
+        self.parar = True
+
+    async def verificar_arquivos_protegidos(self, caminho_arquivo):
+        """Verifica se um arquivo está protegido por senha"""
+        return await ConversorModel.verificar_arquivo_protegido(caminho_arquivo)
+
+    async def processar_arquivos_protegidos(self, arquivos, pasta_destino, callback_status=None):
+        """Processa arquivos protegidos e atualiza o status"""
+        self.arquivos_protegidos = arquivos
+        self.resultados_protegidos = await ConversorModel.processar_arquivos_protegidos(
+            arquivos, pasta_destino, callback_status
         )
-        
-        #Calcula o tempo do processo
-        tempo_decorrido = time.time() - inicio
-        horas, resto = divmod(tempo_decorrido, 3600)
-        minutos, segundos = divmod(resto, 60)
-        tempo_formatado = f"{int(horas)}h {int(minutos)}m {int(segundos)}s"
-        
-        #Mensagem do status
-        mensagem_resumo = [
-            f"✅ Conversão concluída em {tempo_formatado}",
-            f"Arquivos convertidos: {total_processados - len(erros)}",
-            f"Arquivos com erro: {len(erros)}",
-            f"Total processado: {total_processados}"
-        ]
-        
-        if erros:
-            caminho_relatorio = gerar_relatorio_erros(erros, destino)
-            mensagem_resumo.append(f"\nRelatório de erros gerado na pasta Destino em:\n{os.path.basename(caminho_relatorio)}")
-        
-        if atualizar_status:
-            atualizar_status("\n".join(mensagem_resumo))
-            
-    finally:
-        loop.close()
+        return self.resultados_protegidos
 
-def iniciar_extracao(origem, atualizar_status=None):
+    def obter_relatorio_protegidos(self):
+        """Gera um relatório dos arquivos protegidos"""
+        if not self.arquivos_protegidos:
+            return []
 
+        relatorio = ["\n🔒 Arquivos com senha:"]
+        for arquivo in self.arquivos_protegidos[:5]:
+            relatorio.append(f"   • {arquivo.name}")
+        
+        if len(self.arquivos_protegidos) > 5:
+            relatorio.append(f"   • ... ({len(self.arquivos_protegidos)-5} arquivos omitidos)")
+        
+        relatorio.append("   📁 Estes arquivos foram movidos para a pasta: arquivos_com_senha")
+        return relatorio
 
-    try:
-        extrair_todos_zips(origem, atualizar_status=atualizar_status)
-        if atualizar_status:
-            atualizar_status("Extração concluída com sucesso!")
-    except Exception as e:
-        if atualizar_status:
-            atualizar_status(f"Erro durante a extração: {e}")
-        print(f"[ERRO] {e}")
+    def obter_estatisticas_protegidos(self):
+        """Retorna estatísticas sobre arquivos protegidos"""
+        total = len(self.arquivos_protegidos)
+        sucessos = sum(1 for _, sucesso, _ in self.resultados_protegidos if sucesso)
+        falhas = total - sucessos
+        return total, sucessos, falhas
+
+def iniciar_conversao(origem, destino, callback_status=None, formato="PDF"):
+    """Função auxiliar para iniciar a conversão em uma thread separada"""
+    vm = ConversorViewModel()
+    asyncio.run(vm.converter(origem, destino, callback_status, formato))
+
+def iniciar_extracao(origem, callback_status=None):
+    """Função auxiliar para iniciar a extração em uma thread separada"""
+    vm = ConversorViewModel()
+    asyncio.run(vm.extrair_arquivos(origem, callback_status))
 
 def parar_conversao(vm):
-    vm.parar = True
+    """Função auxiliar para parar a conversão"""
+    if vm:
+        vm.parar_conversao()
 
 def gerar_relatorio_erros(erros, pasta_destino):
     #Aqui vai gerar um arquivo TXT com erros na pasta de destino
